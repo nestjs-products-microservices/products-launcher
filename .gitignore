@@ -1,3 +1,5 @@
 .env
 
 node_modules/
+
+k8s/ecommerce/ecommerce-microservices-488103-db10ec0fbe47.json
