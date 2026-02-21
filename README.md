@@ -9,6 +9,10 @@ Repositorio orquestador de microservicios que centraliza la construcción y publ
 - `products-ms`
 - `client-gateway`
 
+## 📚 Docs
+- [Submódulos](docs/SUBMODULES.md)
+- [Kubernetes + Helm](docs/K8S.md)
+
 ## ✅ Prerrequisitos
 - `gcloud` instalado y autenticado.
 - Proyecto GCP configurado.
