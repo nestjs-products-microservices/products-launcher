@@ -1,52 +1,143 @@
+# 🚀 CI/CD - Products Launcher
 
+Repositorio orquestador de microservicios que centraliza la construcción y publicación de imágenes Docker en GCP usando **Cloud Build**, **Artifact Registry**, **Secret Manager** e **IAM**.
 
+## 🧩 Servicios (submódulos)
+- `auth-ms`
+- `orders-ms`
+- `payments-ms`
+- `products-ms`
+- `client-gateway`
 
+## 📚 Docs
+- [Submódulos](docs/SUBMODULES.md)
+- [Kubernetes + Helm](docs/K8S.md)
 
-## Dev
+## ✅ Prerrequisitos
+- `gcloud` instalado y autenticado.
+- Proyecto GCP configurado.
+- Artifact Registry y Secret Manager habilitados.
+- Cuenta de servicio usada en CI/CD:
+  - `202140589714-compute@developer.gserviceaccount.com`
+- Roles IAM mínimos requeridos:
+  - `roles/cloudbuild.builds.editor`
+  - `roles/secretmanager.secretAccessor`
+  - `roles/artifactregistry.writer`
 
-1. Clonar el repositorio
-2. Crear un .env basado en el .env.template
-3. Ejecutar el comando `git submodule update --init --recursive` para reconstruir los sub-módulos
-4. Ejecutar el comando `docker compose up --build`
-
-
-### Pasos para crear los Git Submodules
-
-1. Crear un nuevo repositorio en GitHub
-2. Clonar el repositorio en la máquina local
-3. Añadir el submodule, donde `repository_url` es la url del repositorio y `directory_name` es el nombre de la carpeta donde quieres que se guarde el sub-módulo (no debe de existir en el proyecto)
+## 🏷️ Convención de imágenes
+Artifact Registry:
 ```
-git submodule add <repository_url> <directory_name>
-```
-4. Añadir los cambios al repositorio (git add, git commit, git push)
-Ej:
-```
-git add .
-git commit -m "Add submodule"
-git push
-```
-5. Inicializar y actualizar Sub-módulos, cuando alguien clona el repositorio por primera vez, debe de ejecutar el siguiente comando para inicializar y actualizar los sub-módulos
-```
-git submodule update --init --recursive
-```
-6. Para actualizar las referencias de los sub-módulos
-```
-git submodule update --remote
+southamerica-east1-docker.pkg.dev/ecommerce-microservices-488103/image-registry/<service-name>
 ```
 
+## 🏗️ Cloud Build por submódulo
+Cada submódulo contiene un `cloudbuild.yml` que construye y publica la imagen correspondiente.
 
-## Importante
-Si se trabaja en el repositorio que tiene los sub-módulos, **primero actualizar y hacer push** en el sub-módulo y **después** en el repositorio principal.
-
-Si se hace al revés, se perderán las referencias de los sub-módulos en el repositorio principal y tendremos que resolver conflictos.
-
-
-
-# Prod
-
-1. Clonar el repositorio
-2. Crear un .env basado en el .env.template
-3. Ejecutar el comando
+### Ejemplo base (auth-ms)
+```yaml
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "southamerica-east1-docker.pkg.dev/ecommerce-microservices-488103/image-registry/auth-ms",
+        "-f",
+        "Dockerfile.prod",
+        "--platform=linux/amd64",
+        ".",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "southamerica-east1-docker.pkg.dev/ecommerce-microservices-488103/image-registry/auth-ms",
+      ]
+options:
+  logging: CLOUD_LOGGING_ONLY
 ```
-docker compose -f docker-compose.prod.yml build
+
+### Ejemplo con secretos (orders-ms)
+```yaml
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+    - -c
+    - |
+      docker build -t southamerica-east1-docker.pkg.dev/ecommerce-microservices-488103/image-registry/orders-ms -f Dockerfile.prod --platform=linux/amd64 --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
+  secretEnv: ['DATABASE_URL']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    [
+      'push',
+      'southamerica-east1-docker.pkg.dev/ecommerce-microservices-488103/image-registry/orders-ms',
+    ]
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/202140589714/secrets/orders_database_url/versions/1
+    env: 'DATABASE_URL'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
 ```
+
+## 🔐 Secretos y variables
+Algunos servicios requieren secretos durante el build.
+
+### orders-ms
+- Secret Manager: `orders_database_url` (versión `1`)
+- Se inyecta como `DATABASE_URL`
+- `Dockerfile.prod` consume `ORDERS_DATABASE_URL` como build-arg
+
+## 🔄 Integración continua (Cloud Build Triggers)
+Al hacer push a la rama `cloud-build`, se ejecutan los triggers por submódulo.
+Convención de nombres:
+```
+<submodulo>-trigger
+```
+
+## 🛠️ Builds manuales
+Desde el directorio de cada submódulo:
+```bash
+gcloud builds submit --config cloudbuild.yml .
+```
+
+## ☸️ Kubernetes + Helm
+Configuración centralizada en `k8s/ecommerce` usando Helm. Incluye deployments y services para los submódulos y NATS.
+
+### Estructura del chart
+- `k8s/ecommerce/Chart.yaml`: definición del chart.
+- `k8s/ecommerce/values.yaml`: valores (vacío por ahora, se usa el YAML directo).
+- `k8s/ecommerce/templates/`: manifests por servicio.
+
+### Deployments por submódulo
+Cada submódulo tiene un `Deployment` con su imagen de Artifact Registry y variables requeridas:
+- `auth-ms`: `JWT_SECRET`, `DATABASE_URL`, `NATS_SERVERS`.
+- `orders-ms`: `DATABASE_URL`, `NATS_SERVERS`.
+- `products-ms`: `DATABASE_URL` (sqlite local), `NATS_SERVERS`.
+- `payments-ms`: `STRIPE_SECRET`, `STRIPE_ENDPOINT_SECRET`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`, `NATS_SERVERS`.
+- `client-gateway`: `NATS_SERVERS`.
+- `nats`: broker de mensajería.
+
+### Services
+- `client-gateway`: `NodePort` en 3000 para exponer el API.
+- `payments-webhook`: `NodePort` en 3000 (apunta a `payments-ms`).
+- `nats`: `ClusterIP` en 4222.
+
+### Secrets requeridos
+Los deployments que consumen secretos esperan secrets de Kubernetes con estas llaves:
+- `auth-secret`: `jwt_secret`, `database_url`.
+- `orders-secret`: `database_url`.
+- `payments-secret`: `stripe_secret`, `stripe_endpoint_secret`.
+
+### Comandos Helm básicos
+Desde `k8s/ecommerce`:
+```bash
+helm install ecommerce .
+helm upgrade ecommerce .
+```
+
+> Más comandos y tips en `docs/K8S.md`.

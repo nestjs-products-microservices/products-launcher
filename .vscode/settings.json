@@ -4,6 +4,9 @@
     "local": {
       "baseUrl": "http://localhost:3000/api"
     },
+    "k8s": {
+      "baseUrl": "http://localhost:31567/api"
+    },
     "prod": {
       "baseUrl": "https://api.prod.tudominio.com/api"
     }
