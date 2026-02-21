@@ -100,3 +100,40 @@ Desde el directorio de cada submódulo:
 ```bash
 gcloud builds submit --config cloudbuild.yml .
 ```
+
+## ☸️ Kubernetes + Helm
+Configuración centralizada en `k8s/ecommerce` usando Helm. Incluye deployments y services para los submódulos y NATS.
+
+### Estructura del chart
+- `k8s/ecommerce/Chart.yaml`: definición del chart.
+- `k8s/ecommerce/values.yaml`: valores (vacío por ahora, se usa el YAML directo).
+- `k8s/ecommerce/templates/`: manifests por servicio.
+
+### Deployments por submódulo
+Cada submódulo tiene un `Deployment` con su imagen de Artifact Registry y variables requeridas:
+- `auth-ms`: `JWT_SECRET`, `DATABASE_URL`, `NATS_SERVERS`.
+- `orders-ms`: `DATABASE_URL`, `NATS_SERVERS`.
+- `products-ms`: `DATABASE_URL` (sqlite local), `NATS_SERVERS`.
+- `payments-ms`: `STRIPE_SECRET`, `STRIPE_ENDPOINT_SECRET`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`, `NATS_SERVERS`.
+- `client-gateway`: `NATS_SERVERS`.
+- `nats`: broker de mensajería.
+
+### Services
+- `client-gateway`: `NodePort` en 3000 para exponer el API.
+- `payments-webhook`: `NodePort` en 3000 (apunta a `payments-ms`).
+- `nats`: `ClusterIP` en 4222.
+
+### Secrets requeridos
+Los deployments que consumen secretos esperan secrets de Kubernetes con estas llaves:
+- `auth-secret`: `jwt_secret`, `database_url`.
+- `orders-secret`: `database_url`.
+- `payments-secret`: `stripe_secret`, `stripe_endpoint_secret`.
+
+### Comandos Helm básicos
+Desde `k8s/ecommerce`:
+```bash
+helm install ecommerce .
+helm upgrade ecommerce .
+```
+
+> Más comandos y tips en `docs/K8S.md`.

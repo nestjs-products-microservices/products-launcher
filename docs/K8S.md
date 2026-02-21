@@ -1,82 +1,71 @@
-# Helm commands
+# Kubernetes + Helm - comandos utiles
 
-* Crear configuración `helm create <nombre>`
-* Aplicar configuración inicial: `helm install <nombre> .`
-* Aplicar actualizaciones: `helm upgrade <nombre> .`
+Guia rapida de comandos para operar el cluster y el chart de Helm de este proyecto.
 
-# K8s commands
+## Helm
+- Crear un chart: `helm create <nombre>`
+- Instalar un chart local: `helm install <nombre> .`
+- Actualizar un release: `helm upgrade <nombre> .`
 
-* Obtener pods, deployments y services: `kubectl get <pods | deployments | services>`
-* Revisar todos pods: `kubectl describe pods`
-* Revisar un pod: `kubectl describe pod <nombre>`
-* Eliminar pod: `kubectl delete pod <nombre>`
-* Revisar logs: `kubectl logs <nombre>`
+## Operaciones basicas de Kubernetes
+- Listar recursos: `kubectl get <pods | deployments | services>`
+- Describir pods: `kubectl describe pods`
+- Describir un pod: `kubectl describe pod <nombre>`
+- Eliminar un pod: `kubectl delete pod <nombre>`
+- Ver logs: `kubectl logs <nombre>`
 
+## Crear manifests rapidamente
 
-
-# Crear deployment:
-```
+### Deployment
+```bash
 kubectl create deployment <nombre> --image=<registro/url/imagen> --dry-run=client -o yaml > deployment.yml
 ```
 
-# Crear service
-```
+### Service
+```bash
 kubectl create service clusterip <nombre> --tcp=<8888> --dry-run=client -o yaml > service.yml
-**kubectl create service nodeport <nombre> --tcp=<3000> --dry-run=client -o yaml > service.yml**
+kubectl create service nodeport <nombre> --tcp=<3000> --dry-run=client -o yaml > service.yml
 ```
-* **clusterip**: solo se puede acceder desde dentro del cluster
-* **nodeport**: se puede acceder desde fuera del cluster
+- **clusterip**: acceso solo dentro del cluster.
+- **nodeport**: acceso desde fuera del cluster.
 
+## Secrets
 
-# Secrets
-
-* Crear secretos, varios a la vez, o uno por uno.
-```
+### Crear secrets
+```bash
 kubectl create secret generic <nombre> --from-literal=key=value
-
 kubectl create secret generic secret1 --from-literal=key1=value1 --from-literal=key2=value2
 ```
-* Obtener los secretos `kubectl get secrets`
-* Ver el contenido de un secreto `kubectl get secrets <nombre> -o yaml`
 
-## Editar un secret
-La forma más fácil es borrarlo y volverlo a crear pero si es más de un secret, no vamos a querer perder los demás.
-Recordar que los secrets están en `base64`, por lo que si queremos editar un secret, debemos hacerlo en `base64`.
+### Inspeccionar secrets
+- Listar: `kubectl get secrets`
+- Ver contenido: `kubectl get secrets <nombre> -o yaml`
 
-1. Editar el secret con `kubectl edit secret <nombre>` esto invocará el editor
-2. Cambiar el valor (se puede usar un editor en [línea para convertir a base64](https://www.rapidtables.com/web/tools/base64-decode.html))
-3. Tocar **i** para insertar líneas y editar el archivo
-4. Poner el valor a decodificar en una nueva línea
-5. Presionar **esc** y luego `:. ! base64 -D` para decodificar el valor
-6. Presionar **i** para insertar o editar el valor
-7. Presionar **esc** y luego `:. ! base64` para codificar el valor
-8. Editar nuevamente el archivo **i** y dejar la línea en su posición
-9. Presionar **esc** y luego **:wq** para guardar y salir
+### Editar un secret
+La forma mas segura suele ser recrearlo, pero si necesitas editarlo:
+1. Ejecuta `kubectl edit secret <nombre>`.
+2. Los valores estan en `base64`. Puedes usar un conversor en linea (por ejemplo [rapidtables](https://www.rapidtables.com/web/tools/base64-decode.html)).
+3. En el editor, presiona **i** para editar, **esc** para salir del modo edicion y `:wq` para guardar.
 
+## Secrets de Google Cloud para pull de imagenes
 
-
-## Configurar secretos de Google Cloud para obtener las imágenes
-
-1. Crear secreto:
-```
+1. Crear el secret de registro:
+```bash
 kubectl create secret docker-registry gcr-json-key --docker-server=SERVIDOR-DE-GOOGLE-docker.pkg.dev --docker-username=_json_key --docker-password="$(cat 'PATH/DE/Tienda Microservices IAM.json')" --docker-email=TU_CORREO@gmail.com
 ```
 
-2. Path del secreto para que use la llave:
-```
+2. Asociarlo al service account por defecto:
+```bash
 kubectl patch serviceaccounts default -p '{ "imagePullSecrets": [{ "name":"gcr-json-key" }] }'
 ```
 
-
-## Exportar y aplicar configuraciones con archivos (secrets en este caso)
-* Para exportar los archivos de configuración
-
-```
+## Exportar y aplicar configuraciones
+- Exportar a archivo:
+```bash
 kubectl get secret <nombre> -o yaml > <nombre>.yml
 ```
-
-* Aplicar la configuración basado en el archivo
-```
+- Aplicar desde archivo:
+```bash
 kubectl create -f <nombre>.yml
 ```
 
