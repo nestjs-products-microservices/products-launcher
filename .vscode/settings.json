@@ -7,8 +7,8 @@
     "k8s": {
       "baseUrl": "http://localhost:31567/api"
     },
-    "prod": {
-      "baseUrl": "https://api.prod.tudominio.com/api"
+    "gke": {
+      "baseUrl": "http://35.190.25.137/api"
     }
   }
 }

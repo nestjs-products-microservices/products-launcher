@@ -108,6 +108,17 @@ gcloud builds submit --config cloudbuild.yml .
 ## ☸️ Kubernetes + Helm
 Configuración centralizada en `k8s/ecommerce` usando Helm. Incluye deployments y services para los submódulos y NATS.
 
+### 🚀 Despliegue en GKE (nuevo)
+El chart ya incluye los Ingress para exponer los servicios en GKE:
+- `k8s/ecommerce/templates/ingress/client-gateway.ingress.yml` → `client-gateway` (API principal).
+- `k8s/ecommerce/templates/ingress/payments-webhook.ingress.yml` → `payments-webhook` (webhooks de Stripe).
+
+Para ver los endpoints públicos creados por GKE:
+```bash
+kubectl get ingress
+```
+> Usa el `ADDRESS` asignado por el Load Balancer para consumir el API o configurar el webhook.
+
 ### Estructura del chart
 - `k8s/ecommerce/Chart.yaml`: definición del chart.
 - `k8s/ecommerce/values.yaml`: valores (vacío por ahora, se usa el YAML directo).
