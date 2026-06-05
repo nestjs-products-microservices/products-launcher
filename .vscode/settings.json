@@ -2,13 +2,18 @@
   "rest-client.environmentVariables": {
     "$shared": {},
     "local": {
-      "baseUrl": "http://localhost:3000/api"
+      "baseUrl": "http://localhost:3000/api",
+      "host": "http://localhost:3000",
+      "paymentsHost": "http://localhost:3003"
     },
     "k8s": {
-      "baseUrl": "http://localhost:31567/api"
+      "baseUrl": "http://localhost:31567/api",
+      "host": "http://localhost:31567"
     },
     "gke": {
-      "baseUrl": "http://35.190.25.137/api"
+      "baseUrl": "http://35.190.25.137/api",
+      "host": "http://35.190.25.137",
+      "paymentsHost": "http://34.117.255.122"
     }
   }
 }
